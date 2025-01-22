@@ -12,8 +12,11 @@ mod intermediate;
 mod opcode;
 mod serialize;
 
+use crate::intermediate::MemoryAddressReference;
 fn main() {
-    todo!()
+    let args: Vec<String> = std::env::args().collect();
+    let parsed = MemoryAddressReference::from_string(&args[1]).unwrap();
+    println!("{parsed:?}");
 }
 
 // flash assembled code to file

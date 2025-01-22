@@ -1,5 +1,8 @@
 // intermediate code objects
-use crate::{constant, opcode::Opcode};
+use crate::{
+    constant,
+    opcode::{Opcode, OpcodeTable},
+};
 use std::collections::HashMap;
 pub type SerializedObject = Vec<u8>;
 pub type SymbolMap = HashMap<String, Symbol>;
@@ -12,7 +15,7 @@ pub struct Header {
     instructionrom_size: u32,
 }
 
-struct Symbol {
+pub struct Symbol {
     name: String,
     addr: Option<MemoryAddress>,
 }
@@ -30,14 +33,34 @@ pub enum OperandsField {
 struct Memory {}
 
 struct Instruction {
-    opcode: OpcodeField,
+    opcode: Opcode,
     operands: Vec<MemoryAddressReference>,
 
     // metadata
     line: usize,
     scope_id: usize,
 }
-enum MemoryAddressReference {
+impl Instruction {
+    /// creates new instruction from string
+    pub fn new(string: &String, opcode_table: OpcodeTable) -> Result<Self, String> {
+        let split_string = respectful_split(string);
+        let opcode = if let Some(opcode) = opcode_table.get(&split_string[0]) {
+            opcode
+        } else {
+            return Err("invalid opcode".to_string());
+        };
+
+        Ok(Instruction {
+            opcode: opcode.clone(),
+            operands: todo!(),
+            line: todo!(),
+            scope_id: todo!(),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum MemoryAddressReference {
     Literal((usize, DataType)), // stored in data
     Symbol((String, DataType)), // stored on stack
     Array((String, DataType)),  // stored in heap
@@ -46,7 +69,7 @@ enum MemoryAddressReference {
 
 impl MemoryAddressReference {
     /// builds a memory address reference object from a string
-    fn from_string(string: String) -> Result<Self, String> {
+    pub fn from_string(string: &String) -> Result<Self, String> {
         enum SuperType {
             Literal,
             Symbol,
@@ -60,6 +83,7 @@ impl MemoryAddressReference {
                 constant::SYMBOL_NOTATION => SuperType::Symbol,
                 constant::LITERAL_NOTATION => SuperType::Literal,
                 constant::ARRAY_NOTATION => SuperType::Array,
+                constant::PROGRAM_NOTATION => SuperType::Program,
                 _ => return Err(format!("invalid operand prelimiter [ {c} ]").to_string()),
             },
             None => return Err("empty operand".to_string()),
@@ -81,7 +105,7 @@ impl MemoryAddressReference {
             _ => return Err("invalid datatype".to_string()),
         };
 
-        let val_str: String = chars.skip(raw_data_type.chars().count()).collect();
+        let val_str: String = chars.skip(raw_data_type.chars().count() + 1).collect();
         match super_type {
             SuperType::Literal => {
                 let val_lit: usize = match val_str.parse() {
@@ -125,6 +149,7 @@ impl MemoryAddress {
         todo!()
     }
 }
+#[derive(Debug)]
 enum DataType {
     // unsigned
     Unsigned8,
@@ -139,4 +164,9 @@ enum DataType {
     // complex
     Array,
     String,
+}
+
+/// split that respects string and arrays
+pub fn respectful_split(string: &String) -> Vec<String> {
+    todo!()
 }
