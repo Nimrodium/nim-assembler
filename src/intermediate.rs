@@ -5,7 +5,11 @@ use crate::{
 };
 use std::collections::HashMap;
 pub type SerializedObject = Vec<u8>;
-pub type SymbolMap = HashMap<String, Symbol>;
+pub type ScopeID = usize;
+pub struct SymbolMap {
+    map: HashMap<String, Symbol>,
+    parent: ScopeID,
+}
 pub type ScopeTree = HashMap<usize, Symbol>;
 
 pub struct Header {
@@ -65,7 +69,10 @@ impl Instruction {
         })
     }
 }
-
+enum ArrayType {
+    Array(ArrayObject),
+    String(String),
+}
 #[derive(Debug)]
 pub enum MemoryAddressReference {
     Literal((usize, DataType)), // stored in data
@@ -74,15 +81,65 @@ pub enum MemoryAddressReference {
     Program(usize),             // references program
 }
 
+pub struct ArrayObject {
+    length: u32,
+    data_type: DataType,
+    data: Vec<MemoryAddressReference>,
+}
+impl ArrayObject {
+    // build new array object from array string
+    pub fn new(array_ir: MemoryAddressReference) -> Result<Self, String> {
+        let unwrapped = if let MemoryAddressReference::Array(inner) = array_ir {
+            inner
+        } else {
+            return Err("ArrayObject::new expects MemoryAddressReference::Array(...) yet received a different variant".to_string());
+        };
+        let pruned_arr: String = unwrapped
+            .0
+            .chars()
+            .skip(1)
+            .take(unwrapped.0.len() - 2)
+            .collect();
+
+        let split_str = respectful_split(&pruned_arr, constant::ARRAY_SEPERATOR)?;
+        // resolve interior values
+        let mut data: Vec<MemoryAddressReference> = vec![];
+        let super_type = match unwrapped.1 {
+            DataType::Unsigned8 => SuperType::Literal,
+            DataType::Unsigned16 => SuperType::Literal,
+            DataType::Unsigned32 => SuperType::Literal,
+            DataType::Signed8 => SuperType::Literal,
+            DataType::Signed16 => SuperType::Literal,
+            DataType::Signed32 => SuperType::Literal,
+            DataType::Array => SuperType::Array,
+            DataType::String => SuperType::Array,
+        };
+        for array_element in split_str {
+            // data.push(MemoryAddressReference::from_string(&array_element)?)
+            // data.push(MemoryAddressReference::from_data(
+            //     array_element,
+            //     super_type,
+            //     data_type,
+            // ))
+        }
+        Ok(ArrayObject {
+            length: data.len() as u32,
+            data_type: unwrapped.1,
+            data,
+        })
+    }
+}
+
+enum SuperType {
+    Literal,
+    Symbol,
+    Array,
+    Program,
+}
+
 impl MemoryAddressReference {
     /// builds a memory address reference object from a string
     pub fn from_string(string: &String) -> Result<Self, String> {
-        enum SuperType {
-            Literal,
-            Symbol,
-            Array,
-            Program,
-        }
         let mut chars = string.chars();
         // collect super type
         let super_type = match chars.next() {
@@ -113,18 +170,26 @@ impl MemoryAddressReference {
         };
 
         let val_str: String = chars.skip(raw_data_type.chars().count() + 1).collect();
+        MemoryAddressReference::from_data(val_str, super_type, data_type)
+    }
+    // from raw data,
+    fn from_data(
+        data: String,
+        super_type: SuperType,
+        data_type: DataType,
+    ) -> Result<MemoryAddressReference, String> {
         match super_type {
             SuperType::Literal => {
-                let val_lit: usize = match val_str.parse() {
+                let val_lit: usize = match data.parse() {
                     Ok(val) => val,
                     Err(why) => return Err(why.to_string()),
                 };
                 Ok(Self::Literal((val_lit, data_type)))
             }
-            SuperType::Symbol => Ok(Self::Symbol((val_str, data_type))),
-            SuperType::Array => Ok(Self::Array((val_str, data_type))),
+            SuperType::Symbol => Ok(Self::Symbol((data, data_type))),
+            SuperType::Array => Ok(Self::Array((data, data_type))),
             SuperType::Program => {
-                let val_lit: usize = match val_str.parse() {
+                let val_lit: usize = match data.parse() {
                     Ok(val) => val,
                     Err(why) => return Err(why.to_string()),
                 };
