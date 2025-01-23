@@ -20,11 +20,6 @@ pub struct Symbol {
     addr: Option<MemoryAddress>,
 }
 
-pub enum OpcodeField {
-    Raw(String),
-    Opcode(Opcode),
-}
-
 pub enum OperandsField {
     Raw(String),
     Operands(Vec<MemoryAddressReference>),
@@ -32,6 +27,7 @@ pub enum OperandsField {
 
 struct Memory {}
 
+#[derive(Debug)]
 pub struct Instruction {
     opcode: Opcode,
     operands: Vec<MemoryAddressReference>,
@@ -42,22 +38,30 @@ pub struct Instruction {
 }
 impl Instruction {
     /// creates new instruction from string
-    pub fn new(string: &String, opcode_table: OpcodeTable) -> Result<Self, String> {
+    pub fn new(
+        string: &String,
+        opcode_table: OpcodeTable,
+        line: usize,
+        scope_id: usize,
+    ) -> Result<Self, String> {
         let split_string = respectful_split(string, SEPERATOR)?;
         println!("{}", split_string[0]);
-        let opcode = if let Some(opcode) = opcode_table.get(&split_string[0]) {
+        let opcode = if let Some(opcode) = opcode_table.get(&split_string[0].to_ascii_lowercase()) {
             opcode
         } else {
             return Err("invalid opcode".to_string());
         };
+        let mut operand_objects: Vec<MemoryAddressReference> = vec![];
         for operand in split_string.iter().skip(1) {
-            println!("{operand}");
+            println!("processing {operand}");
+            let obj = MemoryAddressReference::from_string(operand)?;
+            operand_objects.push(obj);
         }
         Ok(Instruction {
             opcode: opcode.clone(),
-            operands: todo!(),
-            line: todo!(),
-            scope_id: todo!(),
+            operands: operand_objects,
+            line,
+            scope_id,
         })
     }
 }

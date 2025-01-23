@@ -4,7 +4,8 @@ use std::{
     path::Path,
 };
 
-use intermediate::{respectful_split, SerializedObject};
+use intermediate::{respectful_split, Instruction, SerializedObject};
+use opcode::build_table;
 
 mod assembler;
 mod constant;
@@ -17,8 +18,10 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     // let parsed = MemoryAddressReference::from_string(&args[1]).unwrap();
     println!("input: {}", args[1]);
-    let parsed = respectful_split(&args[1], constant::SEPERATOR).unwrap();
-    println!("output: {parsed:?}");
+    // let parsed = respectful_split(&args[1], constant::SEPERATOR).unwrap();
+    let opcode_table = build_table();
+    let instruction = Instruction::new(&args[1], opcode_table, 0, 0).unwrap();
+    println!("output: {instruction:?}");
 }
 
 // flash assembled code to file

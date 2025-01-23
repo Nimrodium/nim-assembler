@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 pub type OpcodeTable = HashMap<String, Opcode>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Opcode {
     name: String,
     code: u16,
@@ -12,7 +12,7 @@ pub struct Opcode {
 }
 
 // build opcode table
-pub fn build_table() {
+pub fn build_table() -> OpcodeTable {
     // define all opcodes here
     let opcodes = [
         Opcode {
@@ -31,4 +31,10 @@ pub fn build_table() {
             fields: 1,
         },
     ];
+    // registry generator
+    let mut table = HashMap::new();
+    for opcode in opcodes {
+        table.insert(opcode.name.clone(), opcode);
+    }
+    table
 }
