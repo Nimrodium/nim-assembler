@@ -1,6 +1,6 @@
 // intermediate code objects
 use crate::{
-    constant,
+    constant::{self, SEPERATOR},
     opcode::{Opcode, OpcodeTable},
 };
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ pub enum OperandsField {
 
 struct Memory {}
 
-struct Instruction {
+pub struct Instruction {
     opcode: Opcode,
     operands: Vec<MemoryAddressReference>,
 
@@ -43,13 +43,16 @@ struct Instruction {
 impl Instruction {
     /// creates new instruction from string
     pub fn new(string: &String, opcode_table: OpcodeTable) -> Result<Self, String> {
-        let split_string = respectful_split(string);
+        let split_string = respectful_split(string, SEPERATOR)?;
+        println!("{}", split_string[0]);
         let opcode = if let Some(opcode) = opcode_table.get(&split_string[0]) {
             opcode
         } else {
             return Err("invalid opcode".to_string());
         };
-
+        for operand in split_string.iter().skip(1) {
+            println!("{operand}");
+        }
         Ok(Instruction {
             opcode: opcode.clone(),
             operands: todo!(),
@@ -167,6 +170,76 @@ enum DataType {
 }
 
 /// split that respects string and arrays
-pub fn respectful_split(string: &String) -> Vec<String> {
-    todo!()
+pub fn respectful_split(string: &String, seperator: char) -> Result<Vec<String>, String> {
+    let mut array: Vec<String> = vec![];
+    let iterator = string.chars();
+
+    let mut str_buffer: Vec<char> = vec![]; // individual vector element buffer
+
+    // flag to see if inside string, adds one to nested layers until closed
+    let mut is_inside_string = false;
+    // how many layers deep is the data structure,
+    // parser will only set is_inside flag as false, closing the data structure when this is zero.
+    // each encounter of a prelimiter ( [ ) will increase this value, and every delimiter ( ] ) will decrease it.
+    let mut nested_layers = 0;
+    println!("seperator : [{seperator}]");
+
+    for character in iterator {
+        match character {
+            // if not in a nest seperate, push and create new buffer, else treat like standard char
+            c if c == seperator => {
+                if nested_layers == 0 {
+                    // push string buffer to return array and clear buffer
+                    array.push(str_buffer.iter().collect::<String>());
+                    str_buffer.clear(); // does not change allocation size, shouldnt be issue ?
+                } else {
+                    str_buffer.push(character);
+                }
+            }
+            // increase nesting and then push character
+            constant::ARRAY_PRELIMITER => {
+                if !is_inside_string {
+                    nested_layers += 1;
+                    str_buffer.push(character);
+                } else {
+                    str_buffer.push(character);
+                }
+            }
+            // decrease nesting and then push character
+            constant::ARRAY_DELIMITER => {
+                if !is_inside_string {
+                    nested_layers -= 1;
+                    str_buffer.push(character);
+                } else {
+                    str_buffer.push(character);
+                }
+            }
+            constant::STRING_NOTATION => {
+                // toggle string
+                match is_inside_string {
+                    true => {
+                        is_inside_string = false;
+                        nested_layers -= 1;
+                    }
+                    false => {
+                        is_inside_string = true;
+                        nested_layers += 1;
+                    }
+                };
+                str_buffer.push(character)
+            }
+            _ => str_buffer.push(character),
+        }
+        // println!("str_buffer: {:?}", str_buffer)
+    }
+    // push last buffer on string end
+    array.push(str_buffer.iter().collect::<String>());
+
+    // verify state after parsing string
+    // raise error if a nest was never closed
+    if nested_layers != 0 {
+        Err("nest was never closed".to_string())
+    } else {
+        Ok(array)
+    }
 }

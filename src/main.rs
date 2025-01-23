@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use intermediate::SerializedObject;
+use intermediate::{respectful_split, SerializedObject};
 
 mod assembler;
 mod constant;
@@ -15,8 +15,10 @@ mod serialize;
 use crate::intermediate::MemoryAddressReference;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let parsed = MemoryAddressReference::from_string(&args[1]).unwrap();
-    println!("{parsed:?}");
+    // let parsed = MemoryAddressReference::from_string(&args[1]).unwrap();
+    println!("input: {}", args[1]);
+    let parsed = respectful_split(&args[1], constant::SEPERATOR).unwrap();
+    println!("output: {parsed:?}");
 }
 
 // flash assembled code to file
