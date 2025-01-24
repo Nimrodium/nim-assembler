@@ -69,18 +69,22 @@ impl Instruction {
         })
     }
 }
+#[derive(Debug)]
 enum ArrayType {
     Array(ArrayObject),
     String(String),
 }
 #[derive(Debug)]
 pub enum MemoryAddressReference {
-    Literal((usize, DataType)), // stored in data
-    Symbol((String, DataType)), // stored on stack
-    Array((String, DataType)),  // stored in heap
-    Program(usize),             // references program
+    Literal((usize, DataType)),   // stored in data
+    Symbol((String, DataType)),   // stored on stack
+    Array((ArrayType, DataType)), // stored in heap
+    Program(usize),               // references program
 }
-
+/// array is stored as `MemoryAddressReference`s in datarom which are dereferenced on load to heap.
+/// to construct a serialized array
+/// `String` -> `ArrayObject::new()` -> `ArrayObject` -> `ArrayObject::serialize()` -> `SerializedObject`
+#[derive(Debug)]
 pub struct ArrayObject {
     length: u32,
     data_type: DataType,
@@ -89,22 +93,27 @@ pub struct ArrayObject {
 impl ArrayObject {
     // build new array object from array string
     pub fn new(array_ir: MemoryAddressReference) -> Result<Self, String> {
-        let unwrapped = if let MemoryAddressReference::Array(inner) = array_ir {
+        let half_unwrapped = if let MemoryAddressReference::Array(inner) = array_ir {
             inner
         } else {
             return Err("ArrayObject::new expects MemoryAddressReference::Array(...) yet received a different variant".to_string());
         };
+        let data_type = half_unwrapped.1;
+        let unwrapped = if let ArrayType::String(inner) = half_unwrapped.0 {
+            inner
+        } else {
+            return Err("Array already built into ArrayObject".to_string());
+        };
         let pruned_arr: String = unwrapped
-            .0
             .chars()
             .skip(1)
-            .take(unwrapped.0.len() - 2)
+            .take(unwrapped.len() - 2)
             .collect();
 
         let split_str = respectful_split(&pruned_arr, constant::ARRAY_SEPERATOR)?;
         // resolve interior values
         let mut data: Vec<MemoryAddressReference> = vec![];
-        let super_type = match unwrapped.1 {
+        let super_type = match data_type {
             DataType::Unsigned8 => SuperType::Literal,
             DataType::Unsigned16 => SuperType::Literal,
             DataType::Unsigned32 => SuperType::Literal,
@@ -124,7 +133,7 @@ impl ArrayObject {
         }
         Ok(ArrayObject {
             length: data.len() as u32,
-            data_type: unwrapped.1,
+            data_type,
             data,
         })
     }
