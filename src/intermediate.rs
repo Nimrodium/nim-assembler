@@ -10,6 +10,39 @@ pub struct SymbolMap {
     map: HashMap<String, Symbol>,
     parent: ScopeID,
 }
+/// hashmap for logging datarom values and dereferencing them during serialization
+/// hashmap structure
+/// data_type/literal/literal_address
+struct DataRomLiteralMap {
+    map: HashMap<DataType, HashMap<usize, usize>>,
+}
+
+impl DataRomLiteralMap {
+    /// adds an entry to datarom returns maybe true/false if entry already exists
+    fn add_entry_datarom(&mut self, data_type: DataType, literal: usize) {
+        todo!()
+    }
+
+    /// accesses datarom structure to retrieve a literal's datarom address for referencing
+    fn retrieve_entry_address_datarom(
+        &self,
+        data_type: DataType,
+        literal: usize,
+    ) -> Result<usize, String> {
+        let sub = if let Some(inner) = self.map.get(&data_type) {
+            inner
+        } else {
+            return Err("failure to access datatype registry directory".to_string());
+        };
+        let address = if let Some(inner) = sub.get(&literal) {
+            inner
+        } else {
+            return Err("failure to access literal's address".to_string());
+        };
+        Ok(*address)
+    }
+}
+
 pub type ScopeTree = HashMap<usize, Symbol>;
 
 pub struct Header {
@@ -196,7 +229,7 @@ impl MemoryAddressReference {
                 Ok(Self::Literal((val_lit, data_type)))
             }
             SuperType::Symbol => Ok(Self::Symbol((data, data_type))),
-            SuperType::Array => Ok(Self::Array((data, data_type))),
+            SuperType::Array => Ok(Self::Array((ArrayType::String(data), data_type))),
             SuperType::Program => {
                 let val_lit: usize = match data.parse() {
                     Ok(val) => val,
@@ -230,7 +263,7 @@ impl MemoryAddress {
         todo!()
     }
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 enum DataType {
     // unsigned
     Unsigned8,
