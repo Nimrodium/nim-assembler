@@ -15,13 +15,12 @@ pub struct SymbolMap {
 /// data_type/literal/literal_address
 struct DataRomLiteralMap {
     map: HashMap<DataType, HashMap<usize, usize>>,
+    top_of_datarom: usize, //next available address
 }
 
 impl DataRomLiteralMap {
     /// adds an entry to datarom returns maybe true/false if entry already exists
-    fn add_entry_datarom(&mut self, data_type: DataType, literal: usize) {
-        todo!()
-    }
+    fn add_entry_datarom(&mut self, data_type: DataType, literal: usize) {}
 
     /// accesses datarom structure to retrieve a literal's datarom address for referencing
     fn retrieve_entry_address_datarom(
@@ -37,6 +36,7 @@ impl DataRomLiteralMap {
         let address = if let Some(inner) = sub.get(&literal) {
             inner
         } else {
+            // might change it to build the reference
             return Err("failure to access literal's address".to_string());
         };
         Ok(*address)
